@@ -9,18 +9,16 @@ import { METRIC_NAME, chartSvg, compute, fmt, tableSvg, todayTotal } from '../sh
 
 const PANE = 'cc-usage-panel'
 const TITLE = 'Claude 用量'
-// The pictures are made wider than any sidebar; the desktop shrinks them to fit, so they always fill
-// the sidebar and grow when it is widened. CHART_BASE: the sidebar width the text size is tuned for.
+// The chart lays itself out in percentages, so it fills whatever width the desktop gives it.
+// The per-day table is a plain picture made wider than any sidebar; the desktop shrinks it to fit,
+// so it fills the sidebar and grows when the sidebar is widened. TEXT_SCALE: its text size.
 const WIDE = 2400
-const CHART_BASE = 300
-// Text size inside the pictures at a ~300px sidebar (1 = drawn size); widening the sidebar
-// enlarges everything further.
 const TEXT_SCALE = 1.25
 
 const view = atom({ plugin: 'cc-usage-panel', key: 'view' } as const,
   { range: 30, acct: 'all', metric: 'eff', group: 'acct', showTable: false, isLoading: false, isDone: false,
     isUpdating: false, error: '', notice: '', data: null } as UsageView,
-  { shape: 'view-3' })
+  { shape: 'view-5' })
 
 // ---------------------------------------------------------------- module state
 // Plain variables, not $.state: they start fresh on every load, so a reload can never leave
@@ -170,6 +168,7 @@ async function openPane($: EngineInterface) {
   later($, () => refresh($, 'open'))
 }
 
+
 // ---------------------------------------------------------------- hooks
 
 export const register: Register = on => {
@@ -259,7 +258,11 @@ export const register: Register = on => {
             ))}
           </Box>
         )}
-        {c && Svg && <Svg isInteractive source={chartSvg(c, WIDE, k, CHART_BASE)} alt={`每日用量柱状图（${tag}），鼠标放到柱子上看当天明细`} />}
+        {c && Svg && (() => {
+          // 横向按百分比铺满小框，纵向和字是固定像素，高度直接告诉桌面版（不用知道边栏多宽）
+          const ch = chartSvg(c)
+          return <Svg isInteractive height={ch.height} source={ch.svg} alt={`每日用量柱状图（${tag}），鼠标放到柱子上看当天明细`} />
+        })()}
         <Box flexDirection="row" flexWrap="wrap" gap={1}>
           <Button key="table" label={x.showTable ? '收起明细表' : '每日明细表'} dimColor onPress={set({ showTable: !x.showTable })} />
           <Button key="refresh" label={refreshLabel} dimColor onPress={() => { later($, () => refresh($, 'press')) }} />

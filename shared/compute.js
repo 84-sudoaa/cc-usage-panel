@@ -102,90 +102,79 @@ export function todayTotal(data) {
   return data.rows.filter(r => r[0] === data.today).reduce((s, r) => s + metricOf('eff', data.weights, r), 0)
 }
 
-// Bar chart with a details card that appears only while a bar is hovered, at the top of the chart; the
-// plot leaves head room there so the card covers empty space, not bars. Hover is CSS only (the desktop draws the SVG in
-// a script-less frame): each day has a hit area followed by its card, shown with the sibling selector.
-// Wout: the picture's own width. base / k: the width it is drawn at. k = text size (1, 1.25, 1.5).
-// The panel passes a very wide Wout with base 300: the desktop then shrinks the picture to exactly the
-// sidebar's width, so the chart fills the sidebar and grows with it, and at a ~300px sidebar the text is k
-// times its drawn size. The report passes its container width as both, so it is drawn 1:1.
-export function chartSvg(c, Wout, k = 1, base = Wout) {
+// Bar chart that always fills the width it is given, with text at its real pixel size.
+// Horizontal positions are percentages, so the bars stretch to any width without anyone knowing that
+// width (the desktop never tells a plugin how wide the sidebar is). Vertical positions and font sizes
+// are pixels, and the height is fixed and returned, so the panel can ask for exactly that height.
+// A details card appears at the top while a bar is hovered (CSS only: the desktop draws the SVG in a
+// script-less frame); the plot leaves head room there so the card mostly covers empty space.
+// Returns { svg, height }.
+export function chartSvg(c, opts = {}) {
   const { dates, byDay, keys, color, todayKey } = c
-  const W = Math.round(base / k)
-  const lh = CARD_LH, head = 36
-  const cardH = head + Math.max(1, keys.length) * lh + 28      // 同一张图里卡片高度固定
+  const n = Math.max(1, dates.length)
+  const lh = 22, head = 32, foot = 24
+  const cardH = head + Math.max(1, keys.length) * lh + foot
+  const top = Math.min(cardH + 6, 100)                 // 顶上留白给悬停卡片（行多的时候会盖住一点高柱子）
+  const plotH = opts.plotH || 170
+  const bottom = 22
+  const H = top + plotH + bottom
+  const L = 13, R = 99                                  // 左边 13% 放刻度字，右边留 1%
   const max = Math.max(1, ...dates.map(d => byDay[d].total))
   const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw)))
   const step = [1, 2, 2.5, 5, 10].map(m => m * p).find(x => x >= raw) || raw
   const ymax = step * Math.ceil(max / step)
-  // 纵轴留够最长刻度字的宽度（「100.0M」这种不会被截掉）
-  const pl = Math.max(34, Math.ceil(fmt(ymax).length * 7.4) + 10), pr = 4, pb = 24, pt = 8
-  // 图保持接近正方形：桌面版的悬停框有高度上限，太高的图会被连宽度一起缩小，填不满边栏
-  const H = Math.max(W, cardH + 110)
-  const ih = H - pt - pb, iw = W - pl - pr
-  // 顶上留白给悬停卡片：最高的柱子只长到卡片下面，卡片出现时基本不挡柱子
-  const room = Math.min(0.5, (cardH + 10) / ih)          // 柱子至少占一半高度
-  const top = ymax / (1 - room)
-  const y = v => pt + ih - (v / top) * ih
-  const bw = iw / Math.max(1, dates.length), gap = Math.min(5, bw * 0.25)
+  const yPx = v => top + plotH - (v / ymax) * plotH
+  const bw = (R - L) / n, gap = Math.min(bw * 0.25, 0.7)
+  const xs = i => L + bw * i
+  const pct = v => v.toFixed(3) + '%'
+  const axis = v => fmt(v).replace('.0', '')
 
   let css = '.h{fill:transparent}.h:hover{fill:' + INK + ';fill-opacity:.14}.t{visibility:hidden;pointer-events:none}'
   dates.forEach((_, i) => { css += '.h' + i + ':hover~.t' + i + '{visibility:visible}' })
-  let s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Wout + '" height="' + Math.round(H * Wout / W) + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="Microsoft YaHei UI, PingFang SC, Segoe UI, sans-serif"><style>' + css + '</style>'
-  for (let v = 0; v <= ymax + 1e-9; v += step) {   // 刻度只画到数据最大值，上面的留白给卡片
-    s += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="' + INK + '" stroke-opacity="0.25"/>'
-    s += '<text x="' + (pl - 5) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="12.5" fill="' + INK + '">' + fmt(v) + '</text>'
+  let s = '<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="' + H + '" font-family="Microsoft YaHei UI, PingFang SC, Segoe UI, sans-serif"><style>' + css + '</style>'
+  for (let v = 0; v <= ymax + 1e-9; v += step) {
+    s += '<line x1="' + pct(L) + '" x2="' + pct(R) + '" y1="' + yPx(v) + '" y2="' + yPx(v) + '" stroke="' + INK + '" stroke-opacity="0.25"/>'
+    s += '<text x="' + pct(L - 1) + '" y="' + (yPx(v) + 4) + '" text-anchor="end" font-size="11.5" fill="' + INK + '">' + axis(v) + '</text>'
   }
-  const every = Math.ceil(dates.length / Math.max(3, Math.floor(W / 52)))
-  const last = dates.length - 1
+  const every = Math.ceil(n / 6), last = n - 1
   dates.forEach((d, i) => {
-    const x = pl + i * bw + gap / 2, w = bw - gap
     let acc = 0
     for (const g of keys) {
       const v = byDay[d].parts[g] || 0
       if (!v) continue
-      const y0 = y(acc), y1 = y(acc + v)
-      s += '<rect x="' + x + '" y="' + y1 + '" width="' + w + '" height="' + Math.max(0.5, y0 - y1) + '" fill="' + color(g) + '"/>'
+      const y0 = yPx(acc), y1 = yPx(acc + v)
+      s += '<rect x="' + pct(xs(i) + gap / 2) + '" y="' + y1 + '" width="' + pct(bw - gap) + '" height="' + Math.max(0.5, y0 - y1) + '" fill="' + color(g) + '"/>'
       acc += v
     }
-    // 规律的标签离最后一个太近就不画，免得挤在一起；最后一个靠右对齐，不被边缘截掉
-    if (i === last || (i % every === 0 && last - i >= Math.max(2, Math.ceil(every * 0.75)))) {
+    // 规律的标签离最后一个太近就不画；最后一个靠右对齐，不被边缘截掉
+    if (i === last || (i % every === 0 && last - i >= every)) {
       const atEnd = i === last
-      s += '<text x="' + (atEnd ? W - pr : x + w / 2) + '" y="' + (H - 8) + '" text-anchor="' + (atEnd ? 'end' : 'middle') + '" font-size="12" fill="' + (d === todayKey ? '#d9774e' : INK) + '">' + esc(d.slice(5)) + '</text>'
+      s += '<text x="' + (atEnd ? pct(R) : pct(xs(i) + bw / 2)) + '" y="' + (H - 6) + '" text-anchor="' + (atEnd ? 'end' : 'middle') + '" font-size="12" fill="' + (d === todayKey ? '#d9774e' : INK) + '">' + esc(d.slice(5)) + '</text>'
     }
   })
   dates.forEach((d, i) => {
-    s += '<rect class="h h' + i + '" x="' + (pl + i * bw) + '" y="' + pt + '" width="' + bw + '" height="' + ih + '"/>'
+    s += '<rect class="h h' + i + '" x="' + pct(xs(i)) + '" y="' + top + '" width="' + pct(bw) + '" height="' + plotH + '"/>'
   })
-
-  const tw = W - 8, tx = 4, ty = pt
-  const showPct = tw >= 260                       // 窄的时候不放占比，把位置让给名字
-  const valX = showPct ? tw - 60 : tw - 12
-  const maxName = Math.max(5, Math.floor((valX - 32 - 58) / 15))
-  const card = (d, cls) => {
+  dates.forEach((d, i) => {
     const b = byDay[d]
     const parts = keys.filter(g => b.parts[g]).sort((a, z) => b.parts[z] - b.parts[a])
+    const ch = head + Math.max(1, parts.length) * lh + foot
     const wd = WEEK[new Date(d + 'T00:00:00').getDay()]
     const isToday = d === todayKey
-    const ch = head + Math.max(1, parts.length) * lh + 28     // 按当天实际行数，少挡一点
-    let o = '<g class="' + cls + '"><rect x="' + tx + '" y="' + ty + '" width="' + tw + '" height="' + ch + '" rx="10" fill="#26231f" fill-opacity="0.97" stroke="' + INK + '" stroke-opacity="0.55"/>'
-    // 窄的时候不写「今天」两个字（会和右边的合计挤在一起），改成日期标橙色
-    o += '<text x="' + (tx + 12) + '" y="' + (ty + 25) + '" font-size="18" font-weight="700" fill="' + (isToday ? '#e8875c' : '#f4efe8') + '">' + esc(d.slice(5)) + ' 周' + wd + (isToday && tw >= 320 ? ' 今天' : '') + '</text>'
-    o += '<text x="' + (tx + tw - 12) + '" y="' + (ty + 25) + '" font-size="18" font-weight="700" text-anchor="end" fill="#f4efe8">' + fmt(b.total) + '</text>'
-    if (!parts.length) o += '<text x="' + (tx + 12) + '" y="' + (ty + head + 16) + '" font-size="16" fill="#cfc8bf">没有记录</text>'
+    s += '<g class="t t' + i + '"><rect x="1%" y="3" width="98%" height="' + ch + '" rx="8" fill="#26231f" fill-opacity="0.97" stroke="' + INK + '" stroke-opacity="0.55"/>'
+    s += '<text x="3%" y="25" font-size="15" font-weight="700" fill="' + (isToday ? '#e8875c' : '#f4efe8') + '">' + esc(d.slice(5)) + ' 周' + wd + (isToday ? ' 今天' : '') + '</text>'
+    s += '<text x="97%" y="25" font-size="15" font-weight="700" text-anchor="end" fill="#f4efe8">' + fmt(b.total) + '</text>'
+    if (!parts.length) s += '<text x="3%" y="' + (head + 17) + '" font-size="14" fill="#cfc8bf">没有记录</text>'
     parts.forEach((g, j) => {
-      const ly = ty + head + 16 + j * lh
-      const pct = b.total ? Math.round((b.parts[g] / b.total) * 100) : 0
-      o += '<rect x="' + (tx + 12) + '" y="' + (ly - 12) + '" width="13" height="13" rx="3" fill="' + color(g) + '"/>'
-      o += '<text x="' + (tx + 32) + '" y="' + ly + '" font-size="16" fill="#ebe5dd">' + esc(g.length > maxName ? g.slice(0, maxName - 1) + '…' : g) + '</text>'
-      o += '<text x="' + (tx + valX) + '" y="' + ly + '" font-size="16" text-anchor="end" fill="#ebe5dd">' + fmt(b.parts[g]) + '</text>'
-      if (showPct) o += '<text x="' + (tx + tw - 12) + '" y="' + ly + '" font-size="14" text-anchor="end" fill="#b5ada3">' + pct + '%</text>'
+      const ly = head + 17 + j * lh
+      const share = b.total ? Math.round((b.parts[g] / b.total) * 100) : 0
+      s += '<rect x="3%" y="' + (ly - 11) + '" width="12" height="12" rx="2.5" fill="' + color(g) + '"/>'
+      s += '<text x="3%" dx="18" y="' + ly + '" font-size="14" fill="#ebe5dd">' + esc(g.length > 12 ? g.slice(0, 11) + '…' : g) + ' <tspan fill="#b5ada3" font-size="12.5">' + share + '%</tspan></text>'
+      s += '<text x="97%" y="' + ly + '" font-size="14" text-anchor="end" fill="#ebe5dd">' + fmt(b.parts[g]) + '</text>'
     })
-    o += '<text x="' + (tx + 12) + '" y="' + (ty + ch - 10) + '" font-size="14" fill="#b5ada3">输出 ' + fmt(b.raw[3]) + ' · 调用 ' + b.raw[4] + (tw >= 300 ? ' · 缓存读 ' + fmt(b.raw[2]) : '') + '</text></g>'
-    return o
-  }
-  dates.forEach((d, i) => { s += card(d, 't t' + i) })        // 平时隐藏，鼠标停在柱子上才出现
-  return s + '</svg>'
+    s += '<text x="3%" y="' + (ch - 4) + '" font-size="12.5" fill="#b5ada3">输出 ' + fmt(b.raw[3]) + ' · 调用 ' + b.raw[4] + ' · 缓存读 ' + fmt(b.raw[2]) + '</text></g>'
+  })
+  return { svg: s + '</svg>', height: H }
 }
 
 // Per-day table as one picture: it scales with the panel, so widening the sidebar enlarges it.

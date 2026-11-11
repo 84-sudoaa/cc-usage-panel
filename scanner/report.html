@@ -26,7 +26,8 @@ h1 { font-size:22px; margin:0 0 2px; }
 .seg button.on { background:var(--accent); color:#fff; }
 .legend { display:flex; flex-wrap:wrap; gap:6px 16px; font-size:13px; margin:4px 0 8px; }
 .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; }
-#chart svg, #table svg { display:block; max-width:100%; height:auto; }
+#chart svg { display:block; width:100%; }
+#table svg { display:block; max-width:100%; height:auto; }
 </style>
 </head>
 <body>
@@ -72,8 +73,7 @@ function render() {
   document.getElementById('controls').innerHTML = ctl;
   document.getElementById('legend').innerHTML = c.keys.map(k =>
     '<span><i style="background:' + c.color(k) + '"></i>' + esc(k) + ' <span style="color:var(--mute)">' + fmt(c.keyTotal(k)) + '</span></span>').join('');
-  const W = Math.max(320, Math.floor(document.getElementById('chart').clientWidth));
-  document.getElementById('chart').innerHTML = chartSvg(c, W);
+  document.getElementById('chart').innerHTML = chartSvg(c, { plotH: 260 }).svg;
   document.getElementById('table').innerHTML = tableSvg(c, DATA).svg;
 }
 
