@@ -11,7 +11,7 @@ export const GREY = '#9a948d'
 export const INK = '#8f877e'
 export const METRIC_NAME = { eff: '等效', raw: '原始总量', out: '输出' }
 const WEEK = '日一二三四五六'
-const CARD_LH = 28   // 悬停卡片的行高
+const CARD_LH = 24   // 悬停卡片的行高
 
 export function fmt(n) {
   if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B'
@@ -102,8 +102,8 @@ export function todayTotal(data) {
   return data.rows.filter(r => r[0] === data.today).reduce((s, r) => s + metricOf('eff', data.weights, r), 0)
 }
 
-// Bar chart with a details card ABOVE the plot (it never covers the bars). By default the card shows
-// the last day; hovering a bar shows that day instead. Hover is CSS only (the desktop draws the SVG in
+// Bar chart with a details card that appears only while a bar is hovered, at the top of the chart; the
+// plot leaves head room there so the card covers empty space, not bars. Hover is CSS only (the desktop draws the SVG in
 // a script-less frame): each day has a hit area followed by its card, shown with the sibling selector.
 // Wout: the picture's own width. base / k: the width it is drawn at. k = text size (1, 1.25, 1.5).
 // The panel passes a very wide Wout with base 300: the desktop then shrinks the picture to exactly the
@@ -112,24 +112,27 @@ export function todayTotal(data) {
 export function chartSvg(c, Wout, k = 1, base = Wout) {
   const { dates, byDay, keys, color, todayKey } = c
   const W = Math.round(base / k)
-  const lh = CARD_LH, head = 44
-  const cardH = head + Math.max(1, keys.length) * lh + 58      // 同一张图里卡片高度固定，切换日期时下面的图不跳
+  const lh = CARD_LH, head = 36
+  const cardH = head + Math.max(1, keys.length) * lh + 28      // 同一张图里卡片高度固定
   const max = Math.max(1, ...dates.map(d => byDay[d].total))
   const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw)))
   const step = [1, 2, 2.5, 5, 10].map(m => m * p).find(x => x >= raw) || raw
   const ymax = step * Math.ceil(max / step)
   // 纵轴留够最长刻度字的宽度（「100.0M」这种不会被截掉）
-  const pl = Math.max(34, Math.ceil(fmt(ymax).length * 7.4) + 10), pr = 4, pb = 24
-  const pt = 4 + cardH + 14                                     // 卡片在上，柱子画在卡片下面
-  const ih = 200, H = pt + ih + pb
-  const iw = W - pl - pr
-  const y = v => pt + ih - (v / ymax) * ih
+  const pl = Math.max(34, Math.ceil(fmt(ymax).length * 7.4) + 10), pr = 4, pb = 24, pt = 8
+  // 图保持接近正方形：桌面版的悬停框有高度上限，太高的图会被连宽度一起缩小，填不满边栏
+  const H = Math.max(W, cardH + 110)
+  const ih = H - pt - pb, iw = W - pl - pr
+  // 顶上留白给悬停卡片：最高的柱子只长到卡片下面，卡片出现时基本不挡柱子
+  const room = Math.min(0.5, (cardH + 10) / ih)          // 柱子至少占一半高度
+  const top = ymax / (1 - room)
+  const y = v => pt + ih - (v / top) * ih
   const bw = iw / Math.max(1, dates.length), gap = Math.min(5, bw * 0.25)
 
-  let css = '.h{fill:transparent}.h:hover{fill:' + INK + ';fill-opacity:.14}.t{visibility:hidden;pointer-events:none}.h:hover~.td{visibility:hidden}'
+  let css = '.h{fill:transparent}.h:hover{fill:' + INK + ';fill-opacity:.14}.t{visibility:hidden;pointer-events:none}'
   dates.forEach((_, i) => { css += '.h' + i + ':hover~.t' + i + '{visibility:visible}' })
   let s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Wout + '" height="' + Math.round(H * Wout / W) + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="Microsoft YaHei UI, PingFang SC, Segoe UI, sans-serif"><style>' + css + '</style>'
-  for (let v = 0; v <= ymax + 1e-9; v += step) {
+  for (let v = 0; v <= ymax + 1e-9; v += step) {   // 刻度只画到数据最大值，上面的留白给卡片
     s += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="' + INK + '" stroke-opacity="0.25"/>'
     s += '<text x="' + (pl - 5) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="12.5" fill="' + INK + '">' + fmt(v) + '</text>'
   }
@@ -155,34 +158,33 @@ export function chartSvg(c, Wout, k = 1, base = Wout) {
     s += '<rect class="h h' + i + '" x="' + (pl + i * bw) + '" y="' + pt + '" width="' + bw + '" height="' + ih + '"/>'
   })
 
-  const tw = W - 8, tx = 4, ty = 4
+  const tw = W - 8, tx = 4, ty = pt
   const showPct = tw >= 260                       // 窄的时候不放占比，把位置让给名字
   const valX = showPct ? tw - 60 : tw - 12
-  const maxName = Math.max(5, Math.floor((valX - 34 - 64) / 17))
-  const card = (d, cls, hint) => {
+  const maxName = Math.max(5, Math.floor((valX - 32 - 58) / 15))
+  const card = (d, cls) => {
     const b = byDay[d]
     const parts = keys.filter(g => b.parts[g]).sort((a, z) => b.parts[z] - b.parts[a])
     const wd = WEEK[new Date(d + 'T00:00:00').getDay()]
     const isToday = d === todayKey
-    let o = '<g class="' + cls + '"><rect x="' + tx + '" y="' + ty + '" width="' + tw + '" height="' + cardH + '" rx="10" fill="#26231f" fill-opacity="0.97" stroke="' + INK + '" stroke-opacity="0.55"/>'
+    const ch = head + Math.max(1, parts.length) * lh + 28     // 按当天实际行数，少挡一点
+    let o = '<g class="' + cls + '"><rect x="' + tx + '" y="' + ty + '" width="' + tw + '" height="' + ch + '" rx="10" fill="#26231f" fill-opacity="0.97" stroke="' + INK + '" stroke-opacity="0.55"/>'
     // 窄的时候不写「今天」两个字（会和右边的合计挤在一起），改成日期标橙色
-    o += '<text x="' + (tx + 12) + '" y="' + (ty + 30) + '" font-size="20" font-weight="700" fill="' + (isToday ? '#e8875c' : '#f4efe8') + '">' + esc(d.slice(5)) + ' 周' + wd + (isToday && tw >= 320 ? ' 今天' : '') + '</text>'
-    o += '<text x="' + (tx + tw - 12) + '" y="' + (ty + 30) + '" font-size="20" font-weight="700" text-anchor="end" fill="#f4efe8">' + fmt(b.total) + '</text>'
-    if (!parts.length) o += '<text x="' + (tx + 12) + '" y="' + (ty + head + 20) + '" font-size="18" fill="#cfc8bf">没有记录</text>'
+    o += '<text x="' + (tx + 12) + '" y="' + (ty + 25) + '" font-size="18" font-weight="700" fill="' + (isToday ? '#e8875c' : '#f4efe8') + '">' + esc(d.slice(5)) + ' 周' + wd + (isToday && tw >= 320 ? ' 今天' : '') + '</text>'
+    o += '<text x="' + (tx + tw - 12) + '" y="' + (ty + 25) + '" font-size="18" font-weight="700" text-anchor="end" fill="#f4efe8">' + fmt(b.total) + '</text>'
+    if (!parts.length) o += '<text x="' + (tx + 12) + '" y="' + (ty + head + 16) + '" font-size="16" fill="#cfc8bf">没有记录</text>'
     parts.forEach((g, j) => {
-      const ly = ty + head + 20 + j * lh
+      const ly = ty + head + 16 + j * lh
       const pct = b.total ? Math.round((b.parts[g] / b.total) * 100) : 0
-      o += '<rect x="' + (tx + 12) + '" y="' + (ly - 13) + '" width="14" height="14" rx="3" fill="' + color(g) + '"/>'
-      o += '<text x="' + (tx + 34) + '" y="' + ly + '" font-size="18" fill="#ebe5dd">' + esc(g.length > maxName ? g.slice(0, maxName - 1) + '…' : g) + '</text>'
-      o += '<text x="' + (tx + valX) + '" y="' + ly + '" font-size="18" text-anchor="end" fill="#ebe5dd">' + fmt(b.parts[g]) + '</text>'
-      if (showPct) o += '<text x="' + (tx + tw - 12) + '" y="' + ly + '" font-size="16" text-anchor="end" fill="#b5ada3">' + pct + '%</text>'
+      o += '<rect x="' + (tx + 12) + '" y="' + (ly - 12) + '" width="13" height="13" rx="3" fill="' + color(g) + '"/>'
+      o += '<text x="' + (tx + 32) + '" y="' + ly + '" font-size="16" fill="#ebe5dd">' + esc(g.length > maxName ? g.slice(0, maxName - 1) + '…' : g) + '</text>'
+      o += '<text x="' + (tx + valX) + '" y="' + ly + '" font-size="16" text-anchor="end" fill="#ebe5dd">' + fmt(b.parts[g]) + '</text>'
+      if (showPct) o += '<text x="' + (tx + tw - 12) + '" y="' + ly + '" font-size="14" text-anchor="end" fill="#b5ada3">' + pct + '%</text>'
     })
-    o += '<text x="' + (tx + 12) + '" y="' + (ty + cardH - 32) + '" font-size="16" fill="#b5ada3">输出 ' + fmt(b.raw[3]) + '  调用 ' + b.raw[4] + '</text>'
-    o += '<text x="' + (tx + 12) + '" y="' + (ty + cardH - 11) + '" font-size="16" fill="#b5ada3">缓存读 ' + fmt(b.raw[2]) + (hint && tw >= 300 ? '  · 鼠标放到柱子上看别的日子' : '') + '</text></g>'
+    o += '<text x="' + (tx + 12) + '" y="' + (ty + ch - 10) + '" font-size="14" fill="#b5ada3">输出 ' + fmt(b.raw[3]) + ' · 调用 ' + b.raw[4] + (tw >= 300 ? ' · 缓存读 ' + fmt(b.raw[2]) : '') + '</text></g>'
     return o
   }
-  if (dates.length) s += card(dates[last], 'td', true)        // 默认显示最后一天
-  dates.forEach((d, i) => { s += card(d, 't t' + i, false) })
+  dates.forEach((d, i) => { s += card(d, 't t' + i) })        // 平时隐藏，鼠标停在柱子上才出现
   return s + '</svg>'
 }
 

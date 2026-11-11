@@ -11,4 +11,4 @@
 - 检查更新 updates and reloads the plugin.
 - Web report from the same code as the panel.
 - Large text throughout: the chart, the details card, the table and the panel text.
-- The chart and table fill the sidebar and grow when it is widened; the details card sits above the bars (never covers them), shows the last day by default and follows the bar under the mouse.
+- The chart and table fill the sidebar and grow when it is widened; a details card appears at the top of the chart while a bar is hovered; the plot keeps head room there so the card covers little.
