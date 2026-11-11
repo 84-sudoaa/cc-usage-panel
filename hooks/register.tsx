@@ -124,10 +124,15 @@ async function selfUpdate($: EngineInterface) {
   }
   // 下载了新版，或者是从本地文件夹装的（文件夹里的改动要重载才生效）：直接重新加载，把更新做完
   await done(res.local ? '正在加载文件夹里的最新代码…' : '已下载新版本，正在重新加载插件…')
+  const cannot = '新版本已经准备好，但这个会话现在没法自动重载（远程连接时会这样）。新开一个会话就能用上，或者回到电脑上输入 /reload-plugins。'
+  // 重载成功时，这份代码连同它的定时器都会被换掉；8 秒后定时器还能跑，说明重载请求卡住了（远程连接时会排队不执行）
+  $.clock.after(8000, () => {
+    void update($, view, x => (x.notice.startsWith('正在加载') || x.notice.startsWith('已下载新版本') ? { ...x, notice: cannot } : x))
+  })
   try {
     await $.command.run({ command: 'reload-plugins' })
   } catch {
-    await update($, view, x => ({ ...x, notice: '新版本已经准备好，但这个会话没法自动重载（比如远程连接时）。新开一个会话就能用上。' }))
+    await update($, view, x => ({ ...x, notice: cannot }))
   }
 }
 
