@@ -136,7 +136,12 @@ async function selfUpdate($: EngineInterface) {
 function wake($: EngineInterface) {
   if (shown) return
   shown = true
-  void update($, view, x => (x.isLoading || x.isDone || x.isUpdating ? { ...x, isLoading: false, isDone: false, isUpdating: false } : x))
+  // 清掉上一版留下的标记；「检查更新」触发的重载到这里就做完了，把「正在加载…」换成完成
+  void update($, view, x => {
+    const reloaded = x.notice.startsWith('正在加载') || x.notice.startsWith('已下载新版本')
+    if (!(x.isLoading || x.isDone || x.isUpdating || reloaded)) return x
+    return { ...x, isLoading: false, isDone: false, isUpdating: false, notice: reloaded ? '已用上最新代码 ✓' : x.notice }
+  })
   later($, () => refresh($, 'cached'))
   later($, async () => {
     try {
