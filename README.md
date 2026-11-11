@@ -26,17 +26,17 @@ Requires **Python 3.8+** on your PATH (`python`, `python3` or `py`). Nothing els
 In a terminal session:
 
 ```
-/plugin install cc-usage-panel --marketplace <owner>/cc-usage-panel
+/plugin install cc-usage-panel --marketplace 84-sudoaa/cc-usage-panel
 ```
 
 or from a shell:
 
 ```bash
-claude plugin marketplace add <owner>/cc-usage-panel
+claude plugin marketplace add 84-sudoaa/cc-usage-panel
 claude plugin install cc-usage-panel@cc-usage-panel --scope user
 ```
 
-In the desktop app: click **+** next to the prompt box → **Plugins** → **Add marketplace** (`<owner>/cc-usage-panel`) → **Add plugin**.
+In the desktop app: click **+** next to the prompt box → **Plugins** → **Add marketplace** (`84-sudoaa/cc-usage-panel`) → **Add plugin**.
 
 Start a new session (or run `/reload-plugins`): the **用量** button appears at the right of the prompt footer. `/cc-usage-panel` opens the panel too.
 

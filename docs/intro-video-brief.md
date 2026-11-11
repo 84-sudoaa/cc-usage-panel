@@ -52,14 +52,12 @@ cc-usage-panel 读本机的 Claude Code 会话记录，把这些答案直接画�
 **命令行**（在 Claude Code 里输入）：
 
 ```
-/plugin install cc-usage-panel --marketplace <你的 GitHub 用户名>/cc-usage-panel
+/plugin install cc-usage-panel --marketplace 84-sudoaa/cc-usage-panel
 ```
 
-**桌面版**：点输入框旁边的 **+** → **Plugins** → **Add marketplace**，填 `<你的 GitHub 用户名>/cc-usage-panel` → 再 **Add plugin** 选 cc-usage-panel。
+**桌面版**：点输入框旁边的 **+** → **Plugins** → **Add marketplace**，填 `84-sudoaa/cc-usage-panel` → 再 **Add plugin** 选 cc-usage-panel。
 
 **更新**：打开面板，点「检查更新」，会自动下载新版并重新加载。
-
-> `<你的 GitHub 用户名>` 是占位符，仓库发布后替换成真实地址。
 
 ## 视频分镜（约 86 秒，8 镜）
 
