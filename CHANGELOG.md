@@ -10,5 +10,5 @@
 - Counts only when the panel opens or 刷新 is pressed; cached, about a second after the first run.
 - 检查更新 updates and reloads the plugin.
 - Web report from the same code as the panel.
-- 字号 switch (standard / large / extra large, remembered across sessions): the chart, hover cards, table and panel text all scale together.
-- The chart and table fill the sidebar and grow when it is widened; hover cards span the chart with large text.
+- Large text throughout: the chart, the details card, the table and the panel text.
+- The chart and table fill the sidebar and grow when it is widened; the details card sits above the bars (never covers them), shows the last day by default and follows the bar under the mouse.

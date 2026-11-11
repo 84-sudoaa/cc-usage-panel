@@ -514,6 +514,14 @@ def cmd_self_update(args):
             logs.append((1, str(e)))
     ok = logs[-1][0] == 0
     text = logs[-1][1].splitlines()[-1] if logs[-1][1] else ""
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        with open(os.path.join(DATA_DIR, "update.log"), "a", encoding="utf-8") as fh:
+            fh.write("%s exe=%s%s" % (dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), exe, os.linesep))
+            for code, out in logs:
+                fh.write("  [%d] %s%s" % (code, " | ".join(out.splitlines())[:500], os.linesep))
+    except OSError:
+        pass
     print(json.dumps({"ok": ok, "message": text[:200]}, ensure_ascii=False))
     return 0
 

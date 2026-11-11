@@ -18,7 +18,6 @@ export type UsageView = {
   metric: string       // eff / raw / out
   group: string        // acct / proj / model
   showTable: boolean
-  scale: number        // text size: 1 standard, 1.25 large, 1.5 extra large (saved across sessions)
   isLoading: boolean
   isDone: boolean      // a refresh the person asked for just finished
   isUpdating: boolean

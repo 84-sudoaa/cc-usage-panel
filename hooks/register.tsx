@@ -13,11 +13,14 @@ const TITLE = 'Claude 用量'
 // the sidebar and grow when it is widened. CHART_BASE: the sidebar width the text size is tuned for.
 const WIDE = 2400
 const CHART_BASE = 300
+// Text size inside the pictures at a ~300px sidebar (1 = drawn size). Fixed at the largest that
+// still fits a narrow sidebar; widening the sidebar enlarges everything further.
+const TEXT_SCALE = 1.5
 
 const view = atom({ plugin: 'cc-usage-panel', key: 'view' } as const,
-  { range: 30, acct: 'all', metric: 'eff', group: 'acct', showTable: false, scale: 1.25, isLoading: false, isDone: false,
+  { range: 30, acct: 'all', metric: 'eff', group: 'acct', showTable: false, isLoading: false, isDone: false,
     isUpdating: false, error: '', notice: '', data: null } as UsageView,
-  { shape: 'view-2' })
+  { shape: 'view-3' })
 
 // ---------------------------------------------------------------- module state
 // Plain variables, not $.state: they start fresh on every load, so a reload can never leave
@@ -137,10 +140,6 @@ function wake($: EngineInterface) {
   void update($, view, x => (x.isLoading || x.isDone || x.isUpdating ? { ...x, isLoading: false, isDone: false, isUpdating: false } : x))
   later($, () => refresh($, 'cached'))
   later($, async () => {
-    const saved = Number(await $.store.get('scale'))
-    if (saved >= 1 && saved <= 2) await update($, view, x => (x.scale === saved ? x : { ...x, scale: saved }))
-  })
-  later($, async () => {
     try {
       version = (JSON.parse(await $.fs.read(`${$.plugin.root}/.claude-plugin/plugin.json`)) as { version?: string }).version ?? ''
     } catch {
@@ -210,13 +209,9 @@ export const register: Register = on => {
     const multi = accts.length > 1
     const v = { ...x, acct: multi ? x.acct : 'all', group: !multi && x.group === 'acct' ? 'proj' : x.group }
     const c = d ? compute(d, v) : null
-    const k = x.scale || 1.25
-    const small = k >= 1.25 ? 'body' : 'footnote'      // 面板里的小字跟着字号一起变大
-    const big = k >= 1.5 ? 'title' : 'heading'
-    const setScale = (n: number) => async () => {
-      await update($, view, y => ({ ...y, scale: n }))
-      await $.store.set('scale', n)
-    }
+    const k = TEXT_SCALE
+    const small = 'body'
+    const big = 'title'
     const tag = `${METRIC_NAME[v.metric as 'eff' | 'raw' | 'out']}${v.acct === 'all' ? '' : ` · ${v.acct}`}`
 
     const seg = (label: string, opts: [string | number, string][], cur: string | number, key: keyof UsageView) => (
@@ -248,12 +243,6 @@ export const register: Register = on => {
         {seg('范围', [[7, '7 天'], [14, '14 天'], [30, '30 天'], [0, '全部']], v.range, 'range')}
         {seg('指标', [['eff', '等效'], ['raw', '原始总量'], ['out', '输出']], v.metric, 'metric')}
         {seg('分组', groupOpts, v.group, 'group')}
-        <Box flexDirection="row" flexWrap="wrap" gap={1} alignItems="center">
-          <Text dimColor size={small}>字号</Text>
-          {([[1, '标准'], [1.25, '大'], [1.5, '特大']] as [number, string][]).map(([n, t]) => (
-            <Button key={`s-${n}`} label={t} variant={k === n ? 'primary' : 'secondary'} onPress={setScale(n)} />
-          ))}
-        </Box>
         {c && (
           <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
             {c.keys.map((g: string) => (
@@ -268,12 +257,12 @@ export const register: Register = on => {
           <Button key="report" label="网页版" dimColor onPress={() => { later($, async () => { await scanner($, ['report']) }) }} />
           <Button key="update" label={x.isUpdating ? '检查中…' : '检查更新'} dimColor onPress={() => { later($, () => selfUpdate($)) }} />
         </Box>
+        {x.notice && <Text size={small}>{x.notice}</Text>}
         {c && d && x.showTable && Svg && (() => {
           const t = tableSvg(c, d, k, WIDE)
           return <Svg source={t.svg} alt={`每日明细表，${t.rows} 天`} />
         })()}
         {c && x.showTable && <Text dimColor size={small}>提示：明细表跟着边栏宽度缩放，把边栏往左拉宽，表和字都会放大。</Text>}
-        {x.notice && <Text dimColor size={small}>{x.notice}</Text>}
         {x.error && <Text color="red">没取到数据：{x.error}</Text>}
         {!d && !x.error && <Text dimColor>{x.isLoading ? '正在统计，第一次要扫全部记录，可能要十几秒…' : '还没有数据，点「刷新」。'}</Text>}
         {d && (
