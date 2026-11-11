@@ -9,14 +9,15 @@
 - A **"用量 · 今天 xx"** button in the prompt footer: press to open the panel, press again to close it.
 - Five numbers: today, last 7 days, daily average, busiest day, all-time total.
 - A stacked bar chart by **account / project / model**, 7, 14, 30 days or everything; metric switch between effective tokens, raw tokens and output tokens.
-- **Hover a bar** for that day's breakdown: each group's tokens and share, output tokens, cache reads and number of calls.
+- **Hover a bar** and a card appears at the top of the chart with that day's breakdown: each group's tokens and share, output tokens, cache reads and number of calls. The chart keeps room at the top for it, so the card hardly covers any bars.
+- The chart **always fills the sidebar's width**, with text at a fixed, readable size.
 - A **per-day table** that scales with the sidebar: widen the sidebar and it grows.
 - **网页版**: the same view as a full web page (same code, same numbers).
 - **刷新** recounts only when you press it, so the panel never jumps while you scroll. The first count reads every transcript and can take 10+ seconds; after that a cache keeps it to about a second.
-- **检查更新** updates the plugin and reloads it in one press.
+- **检查更新** finishes the update in one press: it fetches a new version if there is one and reloads the plugin. (If the session cannot reload plugins, for example while it is connected remotely, the panel says so: start a new session.)
 - One account? The account switch is hidden and everything is counted for that account.
 
-右下角按钮点开、再点关闭；五个数（今天、近 7 天、日均、最多的一天、全部总量）；按账号 / 项目 / 模型堆叠的柱状图，鼠标悬停看当天明细；每日明细表随边栏拉宽放大；网页版；「刷新」只在点的时候统计；「检查更新」一键更新；只有一个账号时自动隐藏账号切换。
+右下角按钮点开、再点关闭；五个数（今天、近 7 天、日均、最多的一天、全部总量）；按账号 / 项目 / 模型堆叠的柱状图，始终铺满边栏宽度，鼠标停在柱子上时顶部弹出当天明细；每日明细表随边栏拉宽放大；网页版；「刷新」只在点的时候统计；「检查更新」一键更新；只有一个账号时自动隐藏账号切换。
 
 ## Install / 安装
 
@@ -41,7 +42,7 @@ Start a new session (or run `/reload-plugins`): the **用量** button appears at
 
 ## Update / 更新
 
-Press **检查更新** in the panel. Or: `claude plugin marketplace update cc-usage-panel && claude plugin update cc-usage-panel@cc-usage-panel`, then `/reload-plugins`.
+Press **检查更新** in the panel: it updates and reloads the plugin. Or by hand: `claude plugin marketplace update cc-usage-panel && claude plugin update cc-usage-panel@cc-usage-panel`, then `/reload-plugins` (or start a new session).
 
 ## How accounts are told apart / 怎么区分账号
 
