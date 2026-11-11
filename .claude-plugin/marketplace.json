@@ -1,0 +1,13 @@
+{
+  "name": "cc-usage-panel",
+  "owner": {
+    "name": "cc-usage-panel contributors"
+  },
+  "plugins": [
+    {
+      "name": "cc-usage-panel",
+      "source": "./"
+    }
+  ],
+  "description": "cc-usage-panel: daily Claude Code token usage in a side panel."
+}

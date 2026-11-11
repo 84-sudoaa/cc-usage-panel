@@ -1,0 +1,10 @@
+{
+  "_comment": "Copy to ~/.claude/cc-usage-panel/config.json. Every key is optional.",
+  "project_roots": ["~/code"],
+  "extra_projects_dirs": [],
+  "desktop_dirs": [],
+  "config_dirs": { "~/.claude-work": "work" },
+  "cli_switch_marker_glob": "",
+  "account_names": { "you@example.com": "personal" },
+  "single_account_fallback": true
+}

@@ -1,0 +1,8 @@
+{
+  "name": "cc-usage-panel",
+  "version": "1.0.0",
+  "description": "Daily token usage for Claude Code, in a side panel: stacked by account, project or model, with hover details and a per-day table.",
+  "license": "MIT",
+  "keywords": ["usage", "tokens", "dashboard", "panel"],
+  "types": "./types/index.d.ts"
+}

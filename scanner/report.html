@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claude 用量</title>
+<style>
+:root { --bg:#faf8f5; --card:#fff; --ink:#2a2622; --mute:#8a8178; --line:#e8e2da; --accent:#c8643c; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#1c1a18; --card:#262321; --ink:#ece6df; --mute:#998f85; --line:#3a3531; --accent:#e0825a; }
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:14px/1.6 "Microsoft YaHei UI","PingFang SC","Segoe UI",system-ui,sans-serif; }
+main { max-width:1100px; margin:0 auto; padding:28px 16px 48px; }
+h1 { font-size:22px; margin:0 0 2px; }
+.sub,.note { color:var(--mute); font-size:12.5px; }
+.tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin:18px 0; }
+.tile,.card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+.card { margin-bottom:18px; }
+.tile .k { color:var(--mute); font-size:12.5px; } .tile .v { font-size:24px; font-weight:600; font-variant-numeric:tabular-nums; } .tile .n { color:var(--mute); font-size:12px; }
+.bar { display:flex; flex-wrap:wrap; gap:12px 18px; align-items:center; margin-bottom:10px; }
+.lbl { color:var(--mute); font-size:12.5px; margin-right:6px; }
+.seg { display:inline-flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+.seg button { border:0; background:transparent; color:var(--ink); padding:5px 12px; font:inherit; font-size:13px; cursor:pointer; }
+.seg button+button { border-left:1px solid var(--line); }
+.seg button.on { background:var(--accent); color:#fff; }
+.legend { display:flex; flex-wrap:wrap; gap:6px 16px; font-size:13px; margin:4px 0 8px; }
+.legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; }
+#chart svg, #table svg { display:block; max-width:100%; height:auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Claude 用量</h1>
+  <div class="sub" id="sub"></div>
+  <div class="tiles" id="tiles"></div>
+  <div class="card">
+    <div class="bar" id="controls"></div>
+    <div class="legend" id="legend"></div>
+    <div id="chart"></div>
+  </div>
+  <div class="card"><div id="table"></div></div>
+  <div class="note">
+    等效 token：缓存读取 ×0.1、缓存写入 ×2、输出 ×5、普通输入 ×1，接近真实消耗；官方额度的算法没有公开，只作参考。<br>
+    数据来自这台电脑上 Claude Code 的会话记录（桌面版、终端都算，含子代理），不含网页版和手机聊天。和插件面板用的是同一份算法。
+  </div>
+</main>
+<script>
+/*__COMPUTE__*/
+const DATA = /*__DATA__*/null;
+const state = { acct: 'all', range: 30, metric: 'eff', group: 'acct' };
+const ACCTS = accountsOf(DATA);
+if (ACCTS.length <= 1) state.group = 'proj';
+
+function seg(label, key, opts) {
+  return '<span><span class="lbl">' + label + '</span><span class="seg">' +
+    opts.map(([v, t]) => '<button data-k="' + key + '" data-v="' + v + '" class="' + (String(state[key]) === String(v) ? 'on' : '') + '">' + esc(t) + '</button>').join('') +
+    '</span></span>';
+}
+
+function render() {
+  const c = compute(DATA, state);
+  const tag = METRIC_NAME[state.metric] + (state.acct === 'all' ? '' : ' · ' + state.acct);
+  document.getElementById('sub').textContent = '生成于 ' + DATA.today + ' ' + DATA.generated + ' · 读了 ' + DATA.files + ' 份会话记录 · 记录从 ' + DATA.since + ' 开始 · v' + DATA.version;
+  document.getElementById('tiles').innerHTML = c.tiles.map(([k, v, n]) =>
+    '<div class="tile"><div class="k">' + k + ' · ' + esc(tag) + '</div><div class="v">' + v + '</div><div class="n">' + esc(n) + '</div></div>').join('');
+  let ctl = '';
+  if (ACCTS.length > 1) ctl += seg('账号', 'acct', [['all', '全部'], ...ACCTS.map(a => [a, a])]);
+  ctl += seg('范围', 'range', [[7, '7 天'], [14, '14 天'], [30, '30 天'], [0, '全部']]);
+  ctl += seg('指标', 'metric', [['eff', '等效'], ['raw', '原始总量'], ['out', '输出']]);
+  ctl += seg('分组', 'group', [...(ACCTS.length > 1 ? [['acct', '按账号']] : []), ['proj', '按项目'], ['model', '按模型']]);
+  document.getElementById('controls').innerHTML = ctl;
+  document.getElementById('legend').innerHTML = c.keys.map(k =>
+    '<span><i style="background:' + c.color(k) + '"></i>' + esc(k) + ' <span style="color:var(--mute)">' + fmt(c.keyTotal(k)) + '</span></span>').join('');
+  const W = Math.max(320, Math.floor(document.getElementById('chart').clientWidth));
+  document.getElementById('chart').innerHTML = chartSvg(c, W);
+  document.getElementById('table').innerHTML = tableSvg(c, DATA).svg;
+}
+
+document.getElementById('controls').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const v = b.dataset.v;
+  state[b.dataset.k] = isNaN(+v) ? v : +v;
+  render();
+});
+let t; window.addEventListener('resize', () => { clearTimeout(t); t = setTimeout(render, 150); });
+render();
+</script>
+</body>
+</html>
