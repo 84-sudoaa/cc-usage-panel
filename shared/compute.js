@@ -11,6 +11,7 @@ export const GREY = '#9a948d'
 export const INK = '#8f877e'
 export const METRIC_NAME = { eff: '等效', raw: '原始总量', out: '输出' }
 const WEEK = '日一二三四五六'
+const CARD_LH = 28   // 悬停卡片的行高
 
 export function fmt(n) {
   if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B'
@@ -108,7 +109,8 @@ export function todayTotal(data) {
 export function chartSvg(c, Wout, k = 1) {
   const { dates, byDay, keys, color, todayKey } = c
   const W = Math.round(Wout / k)
-  const H = Math.max(280, 36 + keys.length * 24 + 46 + 24)
+  // 高度至少放得下最长的悬停卡片（按项目分组时最多 8 行）
+  const H = Math.max(280, 44 + keys.length * CARD_LH + 58 + 20)
   const max = Math.max(1, ...dates.map(d => byDay[d].total))
   const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw)))
   const step = [1, 2, 2.5, 5, 10].map(m => m * p).find(x => x >= raw) || raw
@@ -150,30 +152,29 @@ export function chartSvg(c, Wout, k = 1) {
   dates.forEach((d, i) => {
     const b = byDay[d]
     const parts = keys.filter(k => b.parts[k]).sort((a, z) => b.parts[z] - b.parts[a])
-    const tw = Math.min(236, W - 8), lh = 24, head = 36
-    const showPct = tw >= 220                       // 窄的时候不放占比，把位置让给名字
-    const valX = showPct ? tw - 50 : tw - 10
-    const maxName = Math.max(4, Math.floor((valX - 28 - 52) / 13))
-    const th = head + Math.max(1, parts.length) * lh + 46
-    let tx = pl + i * bw + bw + 4
-    if (tx + tw > W - 2) tx = pl + i * bw - tw - 4
-    tx = Math.max(4, Math.min(tx, W - tw - 4))
+    // 卡片铺满整张图的宽度，字比坐标轴大一大截；pointer-events:none，鼠标照样能在柱子间移动
+    const tw = W - 8, lh = CARD_LH, head = 44
+    const showPct = tw >= 260                       // 窄的时候不放占比，把位置让给名字
+    const valX = showPct ? tw - 60 : tw - 12
+    const maxName = Math.max(5, Math.floor((valX - 34 - 64) / 17))
+    const th = head + Math.max(1, parts.length) * lh + 58
+    const tx = 4
     const ty = pt + 2
     const wd = WEEK[new Date(d + 'T00:00:00').getDay()]
-    s += '<g class="t t' + i + '"><rect x="' + tx + '" y="' + ty + '" width="' + tw + '" height="' + th + '" rx="8" fill="#26231f" fill-opacity="0.97" stroke="' + INK + '" stroke-opacity="0.5"/>'
-    s += '<text x="' + (tx + 10) + '" y="' + (ty + 24) + '" font-size="16" font-weight="700" fill="#f4efe8">' + esc(d.slice(5)) + ' 周' + wd + (d === todayKey ? ' 今天' : '') + '</text>'
-    s += '<text x="' + (tx + tw - 10) + '" y="' + (ty + 24) + '" font-size="16" font-weight="700" text-anchor="end" fill="#f4efe8">' + fmt(b.total) + '</text>'
-    if (!parts.length) s += '<text x="' + (tx + 10) + '" y="' + (ty + head + 16) + '" font-size="15" fill="#cfc8bf">没有记录</text>'
+    s += '<g class="t t' + i + '"><rect x="' + tx + '" y="' + ty + '" width="' + tw + '" height="' + th + '" rx="10" fill="#26231f" fill-opacity="0.97" stroke="' + INK + '" stroke-opacity="0.55"/>'
+    s += '<text x="' + (tx + 12) + '" y="' + (ty + 30) + '" font-size="20" font-weight="700" fill="#f4efe8">' + esc(d.slice(5)) + ' 周' + wd + (d === todayKey ? ' 今天' : '') + '</text>'
+    s += '<text x="' + (tx + tw - 12) + '" y="' + (ty + 30) + '" font-size="20" font-weight="700" text-anchor="end" fill="#f4efe8">' + fmt(b.total) + '</text>'
+    if (!parts.length) s += '<text x="' + (tx + 12) + '" y="' + (ty + head + 20) + '" font-size="18" fill="#cfc8bf">没有记录</text>'
     parts.forEach((k, j) => {
-      const ly = ty + head + 16 + j * lh
+      const ly = ty + head + 20 + j * lh
       const pct = b.total ? Math.round((b.parts[k] / b.total) * 100) : 0
-      s += '<rect x="' + (tx + 10) + '" y="' + (ly - 11) + '" width="12" height="12" rx="2.5" fill="' + color(k) + '"/>'
-      s += '<text x="' + (tx + 28) + '" y="' + ly + '" font-size="15" fill="#ebe5dd">' + esc(k.length > maxName ? k.slice(0, maxName - 1) + '…' : k) + '</text>'
-      s += '<text x="' + (tx + valX) + '" y="' + ly + '" font-size="15" text-anchor="end" fill="#ebe5dd">' + fmt(b.parts[k]) + '</text>'
-      if (showPct) s += '<text x="' + (tx + tw - 10) + '" y="' + ly + '" font-size="13.5" text-anchor="end" fill="#b5ada3">' + pct + '%</text>'
+      s += '<rect x="' + (tx + 12) + '" y="' + (ly - 13) + '" width="14" height="14" rx="3" fill="' + color(k) + '"/>'
+      s += '<text x="' + (tx + 34) + '" y="' + ly + '" font-size="18" fill="#ebe5dd">' + esc(k.length > maxName ? k.slice(0, maxName - 1) + '…' : k) + '</text>'
+      s += '<text x="' + (tx + valX) + '" y="' + ly + '" font-size="18" text-anchor="end" fill="#ebe5dd">' + fmt(b.parts[k]) + '</text>'
+      if (showPct) s += '<text x="' + (tx + tw - 12) + '" y="' + ly + '" font-size="16" text-anchor="end" fill="#b5ada3">' + pct + '%</text>'
     })
-    s += '<text x="' + (tx + 10) + '" y="' + (ty + th - 28) + '" font-size="13.5" fill="#b5ada3">输出 ' + fmt(b.raw[3]) + '  调用 ' + b.raw[4] + '</text>'
-    s += '<text x="' + (tx + 10) + '" y="' + (ty + th - 10) + '" font-size="13.5" fill="#b5ada3">缓存读 ' + fmt(b.raw[2]) + '</text></g>'
+    s += '<text x="' + (tx + 12) + '" y="' + (ty + th - 32) + '" font-size="16" fill="#b5ada3">输出 ' + fmt(b.raw[3]) + '  调用 ' + b.raw[4] + '</text>'
+    s += '<text x="' + (tx + 12) + '" y="' + (ty + th - 11) + '" font-size="16" fill="#b5ada3">缓存读 ' + fmt(b.raw[2]) + '</text></g>'
   })
   return s + '</svg>'
 }
