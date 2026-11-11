@@ -13,9 +13,9 @@ const TITLE = 'Claude 用量'
 // the sidebar and grow when it is widened. CHART_BASE: the sidebar width the text size is tuned for.
 const WIDE = 2400
 const CHART_BASE = 300
-// Text size inside the pictures at a ~300px sidebar (1 = drawn size). Fixed at the largest that
-// still fits a narrow sidebar; widening the sidebar enlarges everything further.
-const TEXT_SCALE = 1.5
+// Text size inside the pictures at a ~300px sidebar (1 = drawn size); widening the sidebar
+// enlarges everything further.
+const TEXT_SCALE = 1.25
 
 const view = atom({ plugin: 'cc-usage-panel', key: 'view' } as const,
   { range: 30, acct: 'all', metric: 'eff', group: 'acct', showTable: false, isLoading: false, isDone: false,
@@ -211,7 +211,7 @@ export const register: Register = on => {
     const c = d ? compute(d, v) : null
     const k = TEXT_SCALE
     const small = 'body'
-    const big = 'title'
+    const big = 'heading'
     const tag = `${METRIC_NAME[v.metric as 'eff' | 'raw' | 'out']}${v.acct === 'all' ? '' : ` · ${v.acct}`}`
 
     const seg = (label: string, opts: [string | number, string][], cur: string | number, key: keyof UsageView) => (
