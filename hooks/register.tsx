@@ -96,17 +96,36 @@ async function refresh($: EngineInterface, mode: 'press' | 'open' | 'cached') {
 
 async function selfUpdate($: EngineInterface) {
   await update($, view, x => ({ ...x, isUpdating: true, notice: '正在检查更新…' }))
+  const t0 = await $.clock.now()
+  const done = async (notice: string) => {
+    const spent = (await $.clock.now()) - t0
+    if (spent < 800) await $.clock.sleep(800 - spent)        // 让「检查中…」看得见
+    await update($, view, x => ({ ...x, isUpdating: false, notice }))
+  }
+  let res: { ok?: boolean; message?: string } = {}
   try {
     const r = await scanner($, ['self-update'], 300000)
-    const res = JSON.parse(r.stdout || '{}') as { ok?: boolean; message?: string }
-    if (res.ok) {
-      await update($, view, x => ({ ...x, isUpdating: false, notice: `检查完了：${res.message || '已是最新'}。正在重新加载插件…` }))
-      await $.command.run({ command: 'reload-plugins' })
-    } else {
-      await update($, view, x => ({ ...x, isUpdating: false, notice: `没能自动更新：${res.message || '未知原因'}。可以在终端运行 claude plugin update cc-usage-panel@cc-usage-panel` }))
-    }
+    res = JSON.parse(r.stdout || '{}')
   } catch (err) {
-    await update($, view, x => ({ ...x, isUpdating: false, notice: `没能自动更新：${String((err as Error)?.message ?? err).slice(0, 200)}` }))
+    await done(`没能检查更新：${String((err as Error)?.message ?? err).slice(0, 200)}`)
+    return
+  }
+  if (!res.ok) {
+    await done(`没能自动更新：${res.message || '未知原因'}。可以在终端运行 claude plugin update cc-usage-panel@cc-usage-panel`)
+    return
+  }
+  const msg = res.message || ''
+  if (/already|latest|最新/i.test(msg)) {
+    const m = /(\d+\.\d+\.\d+)/.exec(msg)
+    await done(`已是最新版本${m ? ` v${m[1]}` : ''}。`)
+    return
+  }
+  // 真的更新了：试着自动重载。远程连接的会话里 /reload-plugins 用不了，就告诉本人怎么生效
+  try {
+    await done('已下载新版本，正在重新加载插件…')
+    await $.command.run({ command: 'reload-plugins' })
+  } catch {
+    await update($, view, x => ({ ...x, notice: '已下载新版本。这个会话没法自动重载（比如远程连接时），新开一个会话，或在本机输入 /reload-plugins 就能用上。' }))
   }
 }
 
