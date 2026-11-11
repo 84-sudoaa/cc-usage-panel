@@ -12,9 +12,9 @@ const TITLE = 'Claude 用量'
 const CHART_W = 300
 
 const view = atom({ plugin: 'cc-usage-panel', key: 'view' } as const,
-  { range: 30, acct: 'all', metric: 'eff', group: 'acct', showTable: false, isLoading: false, isDone: false,
+  { range: 30, acct: 'all', metric: 'eff', group: 'acct', showTable: false, scale: 1.25, isLoading: false, isDone: false,
     isUpdating: false, error: '', notice: '', data: null } as UsageView,
-  { shape: 'view-1' })
+  { shape: 'view-2' })
 
 // ---------------------------------------------------------------- module state
 // Plain variables, not $.state: they start fresh on every load, so a reload can never leave
@@ -115,6 +115,10 @@ function wake($: EngineInterface) {
   void update($, view, x => (x.isLoading || x.isDone || x.isUpdating ? { ...x, isLoading: false, isDone: false, isUpdating: false } : x))
   later($, () => refresh($, 'cached'))
   later($, async () => {
+    const saved = Number(await $.store.get('scale'))
+    if (saved >= 1 && saved <= 2) await update($, view, x => (x.scale === saved ? x : { ...x, scale: saved }))
+  })
+  later($, async () => {
     try {
       version = (JSON.parse(await $.fs.read(`${$.plugin.root}/.claude-plugin/plugin.json`)) as { version?: string }).version ?? ''
     } catch {
@@ -184,11 +188,18 @@ export const register: Register = on => {
     const multi = accts.length > 1
     const v = { ...x, acct: multi ? x.acct : 'all', group: !multi && x.group === 'acct' ? 'proj' : x.group }
     const c = d ? compute(d, v) : null
+    const k = x.scale || 1.25
+    const small = k >= 1.25 ? 'body' : 'footnote'      // 面板里的小字跟着字号一起变大
+    const big = k >= 1.5 ? 'title' : 'heading'
+    const setScale = (n: number) => async () => {
+      await update($, view, y => ({ ...y, scale: n }))
+      await $.store.set('scale', n)
+    }
     const tag = `${METRIC_NAME[v.metric as 'eff' | 'raw' | 'out']}${v.acct === 'all' ? '' : ` · ${v.acct}`}`
 
     const seg = (label: string, opts: [string | number, string][], cur: string | number, key: keyof UsageView) => (
       <Box flexDirection="row" flexWrap="wrap" gap={1} alignItems="center">
-        <Text dimColor size="footnote">{label}</Text>
+        <Text dimColor size={small}>{label}</Text>
         {opts.map(([val, text]) => (
           <Button key={`${String(key)}-${val}`} label={text} variant={cur === val ? 'primary' : 'secondary'}
             onPress={set({ [key]: val } as Partial<UsageView>)} />
@@ -203,11 +214,11 @@ export const register: Register = on => {
         {multi && seg('账号', [['all', '全部'], ...accts.map(a => [a, a] as [string, string])], v.acct, 'acct')}
         {c && (
           <Box flexDirection="row" flexWrap="wrap" columnGap={3} rowGap={1}>
-            {c.tiles.map(([k, val, note]: [string, string, string]) => (
-              <Box key={`t-${k}`} flexDirection="column">
-                <Text dimColor size="footnote">{k} · {tag}</Text>
-                <Text bold tabular size="heading">{val}</Text>
-                <Text dimColor size="footnote">{note}</Text>
+            {c.tiles.map(([name, val, note]: [string, string, string]) => (
+              <Box key={`t-${name}`} flexDirection="column">
+                <Text dimColor size={small}>{name} · {tag}</Text>
+                <Text bold tabular size={big}>{val}</Text>
+                <Text dimColor size={small}>{note}</Text>
               </Box>
             ))}
           </Box>
@@ -215,14 +226,20 @@ export const register: Register = on => {
         {seg('范围', [[7, '7 天'], [14, '14 天'], [30, '30 天'], [0, '全部']], v.range, 'range')}
         {seg('指标', [['eff', '等效'], ['raw', '原始总量'], ['out', '输出']], v.metric, 'metric')}
         {seg('分组', groupOpts, v.group, 'group')}
+        <Box flexDirection="row" flexWrap="wrap" gap={1} alignItems="center">
+          <Text dimColor size={small}>字号</Text>
+          {([[1, '标准'], [1.25, '大'], [1.5, '特大']] as [number, string][]).map(([n, t]) => (
+            <Button key={`s-${n}`} label={t} variant={k === n ? 'primary' : 'secondary'} onPress={setScale(n)} />
+          ))}
+        </Box>
         {c && (
           <Box flexDirection="row" flexWrap="wrap" columnGap={2}>
-            {c.keys.map((k: string) => (
-              <Text key={`l-${k}`}><Text color={c.color(k)}>■</Text> {k} <Text dimColor>{fmt(c.keyTotal(k))}</Text></Text>
+            {c.keys.map((g: string) => (
+              <Text key={`l-${g}`} size={small}><Text color={c.color(g)}>■</Text> {g} <Text dimColor>{fmt(c.keyTotal(g))}</Text></Text>
             ))}
           </Box>
         )}
-        {c && Svg && <Svg isInteractive source={chartSvg(c, CHART_W)} alt={`每日用量柱状图（${tag}），鼠标放到柱子上看当天明细`} />}
+        {c && Svg && <Svg isInteractive source={chartSvg(c, CHART_W, k)} alt={`每日用量柱状图（${tag}），鼠标放到柱子上看当天明细`} />}
         <Box flexDirection="row" flexWrap="wrap" gap={1}>
           <Button key="table" label={x.showTable ? '收起明细表' : '每日明细表'} dimColor onPress={set({ showTable: !x.showTable })} />
           <Button key="refresh" label={refreshLabel} dimColor onPress={() => { later($, () => refresh($, 'press')) }} />
@@ -230,15 +247,15 @@ export const register: Register = on => {
           <Button key="update" label={x.isUpdating ? '检查中…' : '检查更新'} dimColor onPress={() => { later($, () => selfUpdate($)) }} />
         </Box>
         {c && d && x.showTable && Svg && (() => {
-          const t = tableSvg(c, d)
+          const t = tableSvg(c, d, k)
           return <Svg source={t.svg} alt={`每日明细表，${t.rows} 天`} />
         })()}
-        {c && x.showTable && <Text dimColor size="footnote">提示：明细表跟着边栏宽度缩放，把边栏往左拉宽，表和字都会放大。</Text>}
-        {x.notice && <Text dimColor size="footnote">{x.notice}</Text>}
+        {c && x.showTable && <Text dimColor size={small}>提示：明细表跟着边栏宽度缩放，把边栏往左拉宽，表和字都会放大。</Text>}
+        {x.notice && <Text dimColor size={small}>{x.notice}</Text>}
         {x.error && <Text color="red">没取到数据：{x.error}</Text>}
         {!d && !x.error && <Text dimColor>{x.isLoading ? '正在统计，第一次要扫全部记录，可能要十几秒…' : '还没有数据，点「刷新」。'}</Text>}
         {d && (
-          <Text dimColor size="footnote">
+          <Text dimColor size={small}>
             统计于 {d.today.slice(5)} {d.generated}，点「刷新」重新统计。等效 token：缓存读取 ×0.1、缓存写入 ×2、输出 ×5。{multi ? '分不清是哪个号的算「未标记」（多半是装插件之前的记录）。' : ''}{version ? ` · v${version}` : ''}
           </Text>
         )}

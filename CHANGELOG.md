@@ -10,3 +10,4 @@
 - Counts only when the panel opens or 刷新 is pressed; cached, about a second after the first run.
 - 检查更新 updates and reloads the plugin.
 - Web report from the same code as the panel.
+- 字号 switch (standard / large / extra large, remembered across sessions): the chart, hover cards, table and panel text all scale together.
