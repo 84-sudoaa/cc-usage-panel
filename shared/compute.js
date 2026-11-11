@@ -105,12 +105,15 @@ export function todayTotal(data) {
 // Bar chart with hover cards. Fixed pixel size (width/height attributes): a surface draws it 1:1
 // instead of guessing, so text keeps its size. Hover is CSS only (no script): each day has a hit
 // area followed by its card, shown with the sibling selector.
-// k = text size (1 standard, 1.25 large, 1.5 extra large): the chart is drawn W / k wide and scaled up to W.
-export function chartSvg(c, Wout, k = 1) {
+// Wout: the picture's own width. base / k: the width it is drawn at. k = text size (1, 1.25, 1.5).
+// The panel passes a very wide Wout with base 300: the desktop then shrinks the picture to exactly the
+// sidebar's width, so the chart fills the sidebar and grows with it, and at a ~300px sidebar the text is k
+// times its drawn size. The report passes its container width as both, so it is drawn 1:1.
+export function chartSvg(c, Wout, k = 1, base = Wout) {
   const { dates, byDay, keys, color, todayKey } = c
-  const W = Math.round(Wout / k)
-  // 高度至少放得下最长的悬停卡片（按项目分组时最多 8 行）
-  const H = Math.max(280, 44 + keys.length * CARD_LH + 58 + 20)
+  const W = Math.round(base / k)
+  // 高度至少放得下最长的悬停卡片
+  const H = Math.max(220, 44 + keys.length * CARD_LH + 58 + 20)
   const max = Math.max(1, ...dates.map(d => byDay[d].total))
   const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw)))
   const step = [1, 2, 2.5, 5, 10].map(m => m * p).find(x => x >= raw) || raw
@@ -123,7 +126,7 @@ export function chartSvg(c, Wout, k = 1) {
 
   let css = '.h{fill:transparent}.h:hover{fill:' + INK + ';fill-opacity:.12}.t{visibility:hidden;pointer-events:none}'
   dates.forEach((_, i) => { css += '.h' + i + ':hover~.t' + i + '{visibility:visible}' })
-  let s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Wout + '" height="' + Math.round(H * k) + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="Microsoft YaHei UI, PingFang SC, Segoe UI, sans-serif"><style>' + css + '</style>'
+  let s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Wout + '" height="' + Math.round(H * Wout / W) + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="Microsoft YaHei UI, PingFang SC, Segoe UI, sans-serif"><style>' + css + '</style>'
   for (let v = 0; v <= ymax + 1e-9; v += step) {
     s += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="' + INK + '" stroke-opacity="0.25"/>'
     s += '<text x="' + (pl - 5) + '" y="' + (y(v) + 4) + '" text-anchor="end" font-size="12.5" fill="' + INK + '">' + fmt(v) + '</text>'
@@ -162,7 +165,9 @@ export function chartSvg(c, Wout, k = 1) {
     const ty = pt + 2
     const wd = WEEK[new Date(d + 'T00:00:00').getDay()]
     s += '<g class="t t' + i + '"><rect x="' + tx + '" y="' + ty + '" width="' + tw + '" height="' + th + '" rx="10" fill="#26231f" fill-opacity="0.97" stroke="' + INK + '" stroke-opacity="0.55"/>'
-    s += '<text x="' + (tx + 12) + '" y="' + (ty + 30) + '" font-size="20" font-weight="700" fill="#f4efe8">' + esc(d.slice(5)) + ' 周' + wd + (d === todayKey ? ' 今天' : '') + '</text>'
+    const isToday = d === todayKey
+    // 窄的时候不写「今天」两个字（会和右边的合计挤在一起），改成日期标橙色
+    s += '<text x="' + (tx + 12) + '" y="' + (ty + 30) + '" font-size="20" font-weight="700" fill="' + (isToday ? '#e8875c' : '#f4efe8') + '">' + esc(d.slice(5)) + ' 周' + wd + (isToday && tw >= 320 ? ' 今天' : '') + '</text>'
     s += '<text x="' + (tx + tw - 12) + '" y="' + (ty + 30) + '" font-size="20" font-weight="700" text-anchor="end" fill="#f4efe8">' + fmt(b.total) + '</text>'
     if (!parts.length) s += '<text x="' + (tx + 12) + '" y="' + (ty + head + 20) + '" font-size="18" fill="#cfc8bf">没有记录</text>'
     parts.forEach((k, j) => {
@@ -180,7 +185,9 @@ export function chartSvg(c, Wout, k = 1) {
 }
 
 // Per-day table as one picture: it scales with the panel, so widening the sidebar enlarges it.
-export function tableSvg(c, data, k = 1) {
+// out: the picture's own width (default: drawn size × k). The panel passes a very wide one so the table
+// always fills the sidebar and grows with it.
+export function tableSvg(c, data, k = 1, out = 0) {
   const w = data.weights
   const cols = [
     ['日期', 86, 'start'], ['等效', 76, 'end'], ['输入', 58, 'end'], ['缓存写入', 84, 'end'],
@@ -209,7 +216,8 @@ export function tableSvg(c, data, k = 1) {
   let x = 8
   for (const col of cols) { xs.push(x); x += col[1] }
   const tx = i => (cols[i][2] === 'end' ? xs[i] + cols[i][1] - 8 : xs[i] + 4)
-  let svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Math.round(W * k) + '" height="' + Math.round(H * k) + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="Microsoft YaHei UI, PingFang SC, Segoe UI, sans-serif">'
+  const Wo = out || Math.round(W * k)
+  let svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + Wo + '" height="' + Math.round(H * Wo / W) + '" viewBox="0 0 ' + W + ' ' + H + '" font-family="Microsoft YaHei UI, PingFang SC, Segoe UI, sans-serif">'
   svg += '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="8" fill="#26231f"/>'
   svg += '<rect x="0" y="0" width="' + W + '" height="' + hh + '" rx="8" fill="#3a3632"/>'
   cols.forEach((col, i) => {

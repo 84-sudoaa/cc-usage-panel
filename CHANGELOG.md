@@ -11,3 +11,4 @@
 - 检查更新 updates and reloads the plugin.
 - Web report from the same code as the panel.
 - 字号 switch (standard / large / extra large, remembered across sessions): the chart, hover cards, table and panel text all scale together.
+- The chart and table fill the sidebar and grow when it is widened; hover cards span the chart with large text.

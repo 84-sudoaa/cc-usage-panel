@@ -9,7 +9,10 @@ import { METRIC_NAME, chartSvg, compute, fmt, tableSvg, todayTotal } from '../sh
 
 const PANE = 'cc-usage-panel'
 const TITLE = 'Claude 用量'
-const CHART_W = 300
+// The pictures are made wider than any sidebar; the desktop shrinks them to fit, so they always fill
+// the sidebar and grow when it is widened. CHART_BASE: the sidebar width the text size is tuned for.
+const WIDE = 2400
+const CHART_BASE = 300
 
 const view = atom({ plugin: 'cc-usage-panel', key: 'view' } as const,
   { range: 30, acct: 'all', metric: 'eff', group: 'acct', showTable: false, scale: 1.25, isLoading: false, isDone: false,
@@ -239,7 +242,7 @@ export const register: Register = on => {
             ))}
           </Box>
         )}
-        {c && Svg && <Svg isInteractive source={chartSvg(c, CHART_W, k)} alt={`每日用量柱状图（${tag}），鼠标放到柱子上看当天明细`} />}
+        {c && Svg && <Svg isInteractive source={chartSvg(c, WIDE, k, CHART_BASE)} alt={`每日用量柱状图（${tag}），鼠标放到柱子上看当天明细`} />}
         <Box flexDirection="row" flexWrap="wrap" gap={1}>
           <Button key="table" label={x.showTable ? '收起明细表' : '每日明细表'} dimColor onPress={set({ showTable: !x.showTable })} />
           <Button key="refresh" label={refreshLabel} dimColor onPress={() => { later($, () => refresh($, 'press')) }} />
@@ -247,7 +250,7 @@ export const register: Register = on => {
           <Button key="update" label={x.isUpdating ? '检查中…' : '检查更新'} dimColor onPress={() => { later($, () => selfUpdate($)) }} />
         </Box>
         {c && d && x.showTable && Svg && (() => {
-          const t = tableSvg(c, d, k)
+          const t = tableSvg(c, d, k, WIDE)
           return <Svg source={t.svg} alt={`每日明细表，${t.rows} 天`} />
         })()}
         {c && x.showTable && <Text dimColor size={small}>提示：明细表跟着边栏宽度缩放，把边栏往左拉宽，表和字都会放大。</Text>}
