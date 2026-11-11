@@ -522,7 +522,10 @@ def cmd_self_update(args):
                 fh.write("  [%d] %s%s" % (code, " | ".join(out.splitlines())[:500], os.linesep))
     except OSError:
         pass
-    print(json.dumps({"ok": ok, "message": text[:200]}, ensure_ascii=False))
+    joined = " ".join(out for _, out in logs).lower()
+    local = "read from its folder" in joined            # 从本地文件夹装的：改动要重载才生效
+    latest = ("already" in joined and "latest" in joined) and not local
+    print(json.dumps({"ok": ok, "message": text[:200], "local": local, "latest": latest}, ensure_ascii=False))
     return 0
 
 

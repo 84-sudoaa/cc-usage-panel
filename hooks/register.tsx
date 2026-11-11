@@ -105,7 +105,7 @@ async function selfUpdate($: EngineInterface) {
     if (spent < 800) await $.clock.sleep(800 - spent)        // 让「检查中…」看得见
     await update($, view, x => ({ ...x, isUpdating: false, notice }))
   }
-  let res: { ok?: boolean; message?: string } = {}
+  let res: { ok?: boolean; message?: string; local?: boolean; latest?: boolean } = {}
   try {
     const r = await scanner($, ['self-update'], 300000)
     res = JSON.parse(r.stdout || '{}')
@@ -117,18 +117,17 @@ async function selfUpdate($: EngineInterface) {
     await done(`没能自动更新：${res.message || '未知原因'}。可以在终端运行 claude plugin update cc-usage-panel@cc-usage-panel`)
     return
   }
-  const msg = res.message || ''
-  if (/already|latest|最新/i.test(msg)) {
-    const m = /(\d+\.\d+\.\d+)/.exec(msg)
+  if (res.latest) {
+    const m = /(\d+\.\d+\.\d+)/.exec(res.message || '')
     await done(`已是最新版本${m ? ` v${m[1]}` : ''}。`)
     return
   }
-  // 真的更新了：试着自动重载。远程连接的会话里 /reload-plugins 用不了，就告诉本人怎么生效
+  // 下载了新版，或者是从本地文件夹装的（文件夹里的改动要重载才生效）：直接重新加载，把更新做完
+  await done(res.local ? '正在加载文件夹里的最新代码…' : '已下载新版本，正在重新加载插件…')
   try {
-    await done('已下载新版本，正在重新加载插件…')
     await $.command.run({ command: 'reload-plugins' })
   } catch {
-    await update($, view, x => ({ ...x, notice: '已下载新版本。这个会话没法自动重载（比如远程连接时），新开一个会话，或在本机输入 /reload-plugins 就能用上。' }))
+    await update($, view, x => ({ ...x, notice: '新版本已经准备好，但这个会话没法自动重载（比如远程连接时）。新开一个会话就能用上。' }))
   }
 }
 
