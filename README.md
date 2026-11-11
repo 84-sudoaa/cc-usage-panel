@@ -1,99 +1,97 @@
 # cc-usage-panel
 
-**Daily token usage for Claude Code, right beside your chat.** The official usage page only shows percentage bars for the 5-hour and weekly limits. This plugin reads the session transcripts Claude Code already keeps on your machine and shows how many tokens you used each day, on which project, with which model, and on which account.
+中文 | [English](README.en.md)
 
-**每天用了多少 Claude，在对话旁边就能看到。** 官方用量页只有 5 小时、每周额度的百分比进度条。这个插件读 Claude Code 本来就存在你电脑上的会话记录，按天统计 token，能按账号、项目、模型拆开看。
+**每天用了多少 Claude，在对话旁边就能看到。** 官方用量页只有 5 小时和每周额度的百分比进度条。这个插件读 Claude Code 本来就存在你电脑上的会话记录，按天统计 token，能看出每天用在哪个项目、哪个模型、哪个账号上。
 
-## What you get / 功能
+## 功能
 
-- A **"用量 · 今天 xx"** button in the prompt footer: press to open the panel, press again to close it.
-- Five numbers: today, last 7 days, daily average, busiest day, all-time total.
-- A stacked bar chart by **account / project / model**, 7, 14, 30 days or everything; metric switch between effective tokens, raw tokens and output tokens.
-- **Hover a bar** and a card appears at the top of the chart with that day's breakdown: each group's tokens and share, output tokens, cache reads and number of calls. The chart keeps room at the top for it, so the card hardly covers any bars.
-- The chart **always fills the sidebar's width**, with text at a fixed, readable size.
-- A **per-day table** that scales with the sidebar: widen the sidebar and it grows.
-- **网页版**: the same view as a full web page (same code, same numbers).
-- **刷新** recounts only when you press it, so the panel never jumps while you scroll. The first count reads every transcript and can take 10+ seconds; after that a cache keeps it to about a second.
-- **检查更新** finishes the update in one press: it fetches a new version if there is one and reloads the plugin. (If the session cannot reload plugins, for example while it is connected remotely, the panel says so: start a new session.)
-- One account? The account switch is hidden and everything is counted for that account.
+- 输入框底栏有一个 **「用量 · 今天 xx」** 按钮：点一下打开面板，再点一下关闭。
+- 五个数：今天、近 7 天、日均、最多的一天、全部总量。
+- 按 **账号 / 项目 / 模型** 堆叠的柱状图，可看 7 天、14 天、30 天或全部；指标可在等效 token、原始 token、输出 token 之间切换。
+- **鼠标停在柱子上**，图顶部会弹出当天明细卡片：每组的 token 和占比、输出 token、缓存读取、调用次数。图顶部给卡片留了位置，卡片几乎不挡柱子。
+- 柱状图 **始终铺满边栏宽度**，文字保持固定的易读字号。
+- **每日明细表** 随边栏缩放：边栏拉宽，表就跟着变大。
+- **网页版**：同样的内容开成完整网页（同一份代码，数字一致）。
+- **刷新** 只在点的时候重新统计，翻看时面板不会乱跳。第一次统计要读全部会话记录，可能要 10 秒以上；之后有缓存，大约一秒。
+- **检查更新** 一键完成更新：有新版就下载，并重新加载插件。（如果当前会话没法重载插件，比如远程连接时，面板会提示你新开一个会话。）
+- 只有一个账号？账号切换会隐藏，全部算在这个账号上。
 
-右下角按钮点开、再点关闭；五个数（今天、近 7 天、日均、最多的一天、全部总量）；按账号 / 项目 / 模型堆叠的柱状图，始终铺满边栏宽度，鼠标停在柱子上时顶部弹出当天明细；每日明细表随边栏拉宽放大；网页版；「刷新」只在点的时候统计；「检查更新」一键更新；只有一个账号时自动隐藏账号切换。
+## 安装
 
-## Install / 安装
+需要 PATH 里有 **Python 3.8 或更高版本**（`python`、`python3` 或 `py`），别的都不用装。
 
-Requires **Python 3.8+** on your PATH (`python`, `python3` or `py`). Nothing else to install.
-
-In a terminal session:
+在终端会话里：
 
 ```
 /plugin install cc-usage-panel --marketplace 84-sudoaa/cc-usage-panel
 ```
 
-or from a shell:
+或者在 shell 里：
 
 ```bash
 claude plugin marketplace add 84-sudoaa/cc-usage-panel
 claude plugin install cc-usage-panel@cc-usage-panel --scope user
 ```
 
-In the desktop app: click **+** next to the prompt box → **Plugins** → **Add marketplace** (`84-sudoaa/cc-usage-panel`) → **Add plugin**.
+桌面版：点输入框旁边的 **+** → **Plugins** → **Add marketplace**（填 `84-sudoaa/cc-usage-panel`）→ **Add plugin**。
 
-Start a new session (or run `/reload-plugins`): the **用量** button appears at the right of the prompt footer. `/cc-usage-panel` opens the panel too.
+新开一个会话（或运行 `/reload-plugins`），输入框底栏右侧就会出现 **用量** 按钮。用 `/cc-usage-panel` 也能打开面板。
 
-## Update / 更新
+## 更新
 
-Press **检查更新** in the panel: it updates and reloads the plugin. Or by hand: `claude plugin marketplace update cc-usage-panel && claude plugin update cc-usage-panel@cc-usage-panel`, then `/reload-plugins` (or start a new session).
+在面板里点 **检查更新**：会自动更新并重新加载插件。也可以手动：`claude plugin marketplace update cc-usage-panel && claude plugin update cc-usage-panel@cc-usage-panel`，然后 `/reload-plugins`（或新开一个会话）。
 
-## How accounts are told apart / 怎么区分账号
+## 怎么区分账号
 
-Transcripts do not say which account made a call, so the plugin works it out, in this order:
+会话记录里不写每次调用用的是哪个账号，所以插件按下面的顺序推断：
 
-1. **Sessions started after you install the plugin**: at session start the plugin records the session id and the account it runs on (account id and email from Claude Code's own settings; never tokens).
-2. **Desktop app sessions**: the desktop app keeps its sessions in one folder per account; found automatically on Windows, macOS and Linux.
-3. Optional config (below): other Claude config folders, a marker for when you last switched the terminal's account.
-4. **Only one account ever seen**: everything is counted for it.
-5. Anything else shows as **未标记** (untagged), typically terminal sessions from before you installed the plugin.
+1. **装好插件之后开的会话**：会话启动时，插件记下会话 id 和它用的账号（账号 id 和邮箱取自 Claude Code 自己的设置；从不读令牌）。
+2. **桌面版的会话**：桌面版按账号把会话分文件夹存放；在 Windows、macOS、Linux 上都能自动找到。
+3. 可选配置（见下）：其他 Claude 配置文件夹、终端上一次切换账号的时间标记。
+4. **只见过一个账号**：全部算在这个账号上。
+5. 其余的显示为 **未标记**，一般是装插件之前在终端里开的会话。
 
-## Config (optional) / 配置（可选）
+## 配置（可选）
 
-`~/.claude/cc-usage-panel/config.json`, every key optional (see `config.example.json`):
+`~/.claude/cc-usage-panel/config.json`，每一项都可省略（参考 `config.example.json`）：
 
-| key | what it does |
+| 键 | 作用 |
 |---|---|
-| `project_roots` | Folders whose first sub-folder names the project (default: the last part of the working folder). |
-| `extra_projects_dirs` | More `projects` folders to read. |
-| `desktop_dirs` | Desktop app data folders, if yours is not in the default place. |
-| `config_dirs` | `{ "<a Claude config folder>": "<account name>" }`: sessions run with that `CLAUDE_CONFIG_DIR` count for that account. |
-| `cli_switch_marker_glob` | Files whose newest change marks your last account switch in the terminal; terminal sessions after it count for the account logged in now. |
-| `account_names` | `{ "<account uuid or email>": "<display name>" }`. Default: the part of the email before `@`. |
-| `single_account_fallback` | `true` (default): with one account, untagged calls count for it. |
+| `project_roots` | 这些文件夹下的第一层子文件夹名作为项目名（默认：工作文件夹路径的最后一段）。 |
+| `extra_projects_dirs` | 额外要读的 `projects` 文件夹。 |
+| `desktop_dirs` | 桌面版数据文件夹，不在默认位置时填。 |
+| `config_dirs` | `{ "<某个 Claude 配置文件夹>": "<账号名>" }`：用这个 `CLAUDE_CONFIG_DIR` 运行的会话算在该账号上。 |
+| `cli_switch_marker_glob` | 这些文件最近一次修改的时间，标记你上一次在终端切换账号；之后的终端会话算在当前登录的账号上。 |
+| `account_names` | `{ "<账号 uuid 或邮箱>": "<显示名>" }`。默认用邮箱 `@` 前面的部分。 |
+| `single_account_fallback` | `true`（默认）：只有一个账号时，未标记的调用算在它上面。 |
 
-## Effective tokens / 等效 token
+## 等效 token
 
-Cache reads ×0.1, cache writes ×2, output ×5, plain input ×1, roughly the API price ratios. It tracks real cost far better than the raw total (which is mostly cheap cache reads), but Anthropic does not publish how plan limits are counted, so treat it as a guide.
+缓存读取 ×0.1，缓存写入 ×2，输出 ×5，普通输入 ×1，大致是 API 的价格比例。它比原始总量（大部分是便宜的缓存读取）更贴近真实花费，但 Anthropic 没有公开套餐额度怎么计算，所以只作参考。
 
-## Privacy / 隐私
+## 隐私
 
-- Reads only local files: transcripts under `~/.claude/projects`, the desktop app's session index, and the account id/email in Claude Code's settings. **Never reads tokens.**
-- Writes only to `~/.claude/cc-usage-panel/` (cache, last result, session→account log, report). Set `CC_USAGE_PANEL_DIR` to move it.
-- No network access except **检查更新**, which runs Claude Code's own `plugin update`.
-- Adds nothing to the model's context: no tools, no prompt text.
+- 只读本机文件：`~/.claude/projects` 下的会话记录、桌面版的会话索引、Claude Code 设置里的账号 id 和邮箱。**从不读令牌。**
+- 只往 `~/.claude/cc-usage-panel/` 里写（缓存、上次结果、会话与账号的对应记录、网页报告）。设置 `CC_USAGE_PANEL_DIR` 可以换位置。
+- 除了 **检查更新**（它运行 Claude Code 自带的 `plugin update`），不联网。
+- 不往模型的上下文里加任何东西：没有工具，没有提示词。
 
-## Commands / 命令行
+## 命令行
 
 ```bash
-python scanner/usage.py text --days 14     # bar chart in the terminal
-python scanner/usage.py report             # open the web page
-python scanner/usage.py where              # which folders it reads and writes
-python scanner/test_usage.py               # tests
+python scanner/usage.py text --days 14     # 在终端里画柱状图
+python scanner/usage.py report             # 打开网页版
+python scanner/usage.py where              # 看它读写哪些文件夹
+python scanner/test_usage.py               # 测试
 ```
 
-## FAQ
+## 常见问题
 
-- **The first refresh is slow.** It reads every transcript once (gigabytes for heavy users). After that only changed files are read again.
-- **Lots of 未标记.** Those calls are from before the plugin was installed, on a machine with more than one account. New sessions are tagged from now on.
-- **Claude Code keeps transcripts for about 30 days** by default (`cleanupPeriodDays`), so older days are gone.
+- **第一次刷新很慢。** 它要把全部会话记录读一遍（重度用户能有好几 GB）。之后只重读有变化的文件。
+- **未标记很多。** 这些调用来自装插件之前、而且这台电脑上有不止一个账号。从现在起新会话都会标上账号。
+- **Claude Code 默认只保留约 30 天的会话记录**（`cleanupPeriodDays`），更早的日子已经没了。
 
-## License
+## 许可证
 
 MIT
